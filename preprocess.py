@@ -2,6 +2,7 @@ import argparse
 import pandas
 import h5py
 import numpy as np
+from functools import reduce
 from molecules.utils import one_hot_array, one_hot_index
 
 from sklearn.model_selection import train_test_split
@@ -50,11 +51,12 @@ def main():
                               train_test_split(structures.index, test_size = 0.20))
 
     charset = list(reduce(lambda x, y: set(y) | x, structures, set()))
-
     one_hot_encoded_fn = lambda row: map(lambda x: one_hot_array(x, len(charset)),
                                                 one_hot_index(row, charset))
 
     h5f = h5py.File(args.outfile, 'w')
+    print(charset)
+
     h5f.create_dataset('charset', data = charset)
 
     def create_chunk_dataset(h5file, dataset_name, dataset, dataset_shape,

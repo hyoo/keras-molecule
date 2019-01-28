@@ -1,0 +1,10 @@
+[Global_Params]
+num_epochs=32
+batch_size=128
+activation='relu'
+optimizer='Adam'
+latent_dim=200
+filter=9
+kernel_size=9
+random_seed=1337
+
