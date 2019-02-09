@@ -53,21 +53,19 @@ if K.backend() == 'tensorflow' and 'NUM_INTRA_THREADS' in os.environ:
 
 
 
-# this is a part of mnist_mlp_candle.py
-
-
+# this is a candle requirement
 def initialize_parameters():
     gae_common = candle.Benchmark('./',
-        'gae_params.txt',  # 4
-        'keras',
-        prog='gae_baseline_keras2',
-        desc='GAE Network'
-    )  # 1
+                    'gae_params.txt',
+                    'keras',
+                     prog='gae_baseline_keras2',
+                     desc='GAE Network'
+                 )
 
     # Initialize parameters
-    gParameters = default_utils.initialize_parameters(gae_common)  # 2
+    gParameters = default_utils.initialize_parameters(gae_common)
 
-    return gParameters  # 3
+    return gParameters
 
 
 
@@ -92,11 +90,21 @@ class MoleculeVAE():
     encoder = None
     decoder = None
     
+    # TODO: find out what default learning rate should be
     def create(self, charset, max_length = 120,
                latent_rep_size = 292, weights_file = None,
-		optimizer='Adam', activation='relu'):
+	       optimizer='Adam', activation='relu',
+               learning_rate=0.001):
         
         charset_length = len(charset)
+
+        # Create a keras optimizer
+        kerasDefaults = candle.keras_default_config()
+        # This next line should be be dynamically set based on gParameters
+        # kerasDefaults['momentum_sgd'] = gParameters['momentum']
+        k_optimizer = candle.build_optimizer(optimizer,
+                                        learning_rate,
+                                        kerasDefaults)
         
         # Build the encoder
         x = Input(shape=(max_length, charset_length))
@@ -134,7 +142,8 @@ class MoleculeVAE():
             self.encoder.load_weights(weights_file, by_name = True)
             self.decoder.load_weights(weights_file, by_name = True)
 
-        self.autoencoder.compile(optimizer = optimizer,
+        print("compiling autoencoder with optimizer = ", k_optimizer)
+        self.autoencoder.compile(optimizer = k_optimizer,
                                  loss = vae_loss,
                                  metrics = ['accuracy'])
 
@@ -214,6 +223,7 @@ def run(gParameters):
     latent_dim = gParameters['latent_dim']
     random_seed = gParameters['random_seed']
     activation = gParameters['activation']
+    optimizer = gParameters['optimizer']
     model_save = MODEL_SAVE
     data = DATA
 
@@ -230,7 +240,9 @@ def run(gParameters):
     if os.path.isfile(model_save):
         model.load(charset, model_save, latent_rep_size = latent_dim)
     else:
-        model.create(charset, latent_rep_size = latent_dim, activation = activation)
+        print("calling model.create with optimizer = ", optimizer)
+        model.create(charset, latent_rep_size = latent_dim, activation = activation,
+                    optimizer = optimizer )
 
     # create callbacks to be executed after each epoch.
     checkpointer = ModelCheckpoint(filepath = model_save,
@@ -262,6 +274,7 @@ def run(gParameters):
 
 if __name__ == '__main__':
     gParameters=initialize_parameters()
+    print("initialize_parameters set optimizer to ", gParameters['optimizer'])
     run(gParameters)
 
 
