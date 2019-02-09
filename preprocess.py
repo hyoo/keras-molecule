@@ -33,6 +33,7 @@ def chunk_iterator(dataset, chunk_size=1000):
 def main():
     args = get_arguments()
     data = pandas.read_hdf(args.infile, 'table')
+    print (data)
     keys = data[args.smiles_column].map(len) < 121
 
     if args.length <= len(keys):
