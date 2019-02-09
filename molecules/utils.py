@@ -19,6 +19,7 @@ def decode_smiles_from_indexes(vec, charset):
     return "".join(map(lambda x: charset[x], vec)).strip()
 
 def load_dataset(filename, split = True):
+    print("loading file: ", filename, " in load_dataset")
     h5f = h5py.File(filename, 'r')
     if split:
         data_train = h5f['data_train'][:]
