@@ -27,14 +27,14 @@ DATA = 'prot.ohe.h5'
 
 # This is the candle stuff
 import candle_keras as candle
-import default_utils
 
-additional_definitions = [{'name':'activation','type':'string'},
-			{'name':'filter','type':'int'},
-			{'name':'kernel_size','type':'int'}]
+additional_definitions = [
+			{'name':'filter','type':int},
+			{'name':'latent_dim','type':int},
+			{'name':'kernel_size','type':int}]
 
 required = None
-class gae(candle.Benchmark):  # 1
+class gae(candle.Benchmark):
     def set_locals(self):
         if required is not None:
             self.required = set(required)
@@ -43,19 +43,13 @@ class gae(candle.Benchmark):  # 1
 
 
 # thread optimization
-import os
-from keras import backend as K
-if K.backend() == 'tensorflow' and 'NUM_INTRA_THREADS' in os.environ:
-    import tensorflow as tf
-    sess = tf.Session(config=tf.ConfigProto(inter_op_parallelism_threads=int(os.environ['NUM_INTER_THREADS']),
-                                            intra_op_parallelism_threads=int(os.environ['NUM_INTRA_THREADS'])))
-    K.set_session(sess)
+candle.set_parallelism_threads()
 
 
 
 # this is a candle requirement
 def initialize_parameters():
-    gae_common = candle.Benchmark('./',
+    gae_common = gae('./',
                     'gae_params.txt',
                     'keras',
                      prog='gae_baseline_keras2',
@@ -63,7 +57,7 @@ def initialize_parameters():
                  )
 
     # Initialize parameters
-    gParameters = default_utils.initialize_parameters(gae_common)
+    gParameters = candle.initialize_parameters(gae_common)
 
     return gParameters
 
@@ -94,6 +88,7 @@ class MoleculeVAE():
     def create(self, charset, max_length = 120,
                latent_rep_size = 292, weights_file = None,
 	       optimizer='Adam', activation='relu',
+               filter_size=9, kernel_size=9,
                learning_rate=0.001):
         
         charset_length = len(charset)
@@ -108,7 +103,7 @@ class MoleculeVAE():
         
         # Build the encoder
         x = Input(shape=(max_length, charset_length))
-        _, z = self._buildEncoder(x, latent_rep_size, max_length, activation=activation)
+        _, z = self._buildEncoder(x, latent_rep_size, max_length, activation=activation, filter=filter_size, kernel_size=kernel_size)
         self.encoder = Model(x, z)
 
         # Build the decoder
@@ -125,7 +120,7 @@ class MoleculeVAE():
 
         # Build the autoencoder (encoder + decoder)
         x1 = Input(shape=(max_length, charset_length))
-        vae_loss, z1 = self._buildEncoder(x1, latent_rep_size, max_length)
+        vae_loss, z1 = self._buildEncoder(x1, latent_rep_size, max_length, filter=filter_size, kernel_size=kernel_size)
         self.autoencoder = Model(
             x1,
             self._buildDecoder(
@@ -218,13 +213,15 @@ DATA = 'prot.ohe.h5'
 def run(gParameters):
     # args = get_arguments()
 
-    num_epochs = gParameters['num_epochs']
+    num_epochs = gParameters['epochs']
     batch_size = gParameters['batch_size']
     latent_dim = gParameters['latent_dim']
     random_seed = gParameters['random_seed']
     activation = gParameters['activation']
     optimizer = gParameters['optimizer']
-    model_save = MODEL_SAVE
+    filter_size = gParameters['filter']
+    kernel_size = gParameters['kernel_size']
+    model_save = gParameters['output_dir'] + '/' + MODEL_SAVE
     data = DATA
 
 
@@ -242,7 +239,7 @@ def run(gParameters):
     else:
         print("calling model.create with optimizer = ", optimizer)
         model.create(charset, latent_rep_size = latent_dim, activation = activation,
-                    optimizer = optimizer )
+                    optimizer = optimizer, filter_size=filter_size, kernel_size=kernel_size )
 
     # create callbacks to be executed after each epoch.
     checkpointer = ModelCheckpoint(filepath = model_save,
@@ -256,7 +253,7 @@ def run(gParameters):
 
     if(True):
         model.autoencoder.summary()
-        model.autoencoder.fit(
+        history = model.autoencoder.fit(
             data_train,
             data_train,
             shuffle = True,
@@ -270,7 +267,8 @@ def run(gParameters):
         metrics = model.autoencoder.evaluate(data_test, data_test, batch_size=512)
         print (model.autoencoder.metrics_names)
         print (metrics)
-        
+
+    return history
 
 if __name__ == '__main__':
     gParameters=initialize_parameters()
