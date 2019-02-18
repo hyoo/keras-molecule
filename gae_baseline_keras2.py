@@ -46,10 +46,11 @@ class gae(candle.Benchmark):
 candle.set_parallelism_threads()
 
 
+file_path = os.path.dirname(os.path.realpath(__file__))
 
 # this is a candle requirement
 def initialize_parameters():
-    gae_common = gae('./',
+    gae_common = gae(file_path,
                     'gae_params.txt',
                     'keras',
                      prog='gae_baseline_keras2',
@@ -222,7 +223,7 @@ def run(gParameters):
     filter_size = gParameters['filter']
     kernel_size = gParameters['kernel_size']
     model_save = gParameters['output_dir'] + '/' + MODEL_SAVE
-    data = DATA
+    data = file_path + '/' + DATA
 
 
 
